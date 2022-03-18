@@ -1,0 +1,112 @@
+---
+title: "PSET 1 Statistics for International Relations and Political Science 2 IHEID "
+author: "Marcelo Piemonte Ribeiro"
+date: "3/18/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 3
+
+Download the SLEEP75 data in the Wooldridge data package in R
+
+#### a) 
+First, run a standard OLS regression to estimate the model $sleep = \beta_0 +\beta_1age+\beta_2educ+\beta_3male+\beta_4yngkid+\beta_5totwrk+\beta_6leis1+u$, and draw a residual plot. What does the plot suggest about heteroskedasticity?
+
+```{r sleep75, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+# install.packages("AER")
+# install.packages("wooldridge")
+# install.packages("stargazer")
+# install.packages("jtools")
+# devtools::install_github("jacob-long/jtools")
+# install.packages("lmtest")
+# install.packages("skedastic")
+# install.packages("car")
+# install.packages("sandwitch")
+
+library(skedastic)
+library(jtools)
+library(stargazer)
+library(AER)
+library(pander)
+library(tidyverse)
+library(sandwich)
+library(car)
+library(estimatr)
+library(texreg)
+data('sleep75',package = "wooldridge") #import dataset)
+force(sleep75)  # transform it to dataframe
+
+```
+
+```{r exercise3a, echo=FALSE, message=FALSE, warning=FALSE}
+lm1 <- lm(sleep ~ age + educ + male + yngkid + totwrk + leis1 , data = sleep75) # fit a OLS model
+
+summ(lm1, digits=14)
+# pander(anova(lm1, test="Chisq"),style='rmarkdown')
+
+getOption("scipen") # format y axis numbers
+opt <- options("scipen" = 6) # avoid scientific notation
+
+par(mfrow = c(2,3))
+plot(lm1) # residuals
+acf(resid(lm1), main="") # independent residuals
+
+# In regards to homoskedasticity, the residuals should roughly form a horizontal band around 0 and don't show any patters.
+# Apparently no pattern, but outliers seems present
+
+
+```
+
+```{r exercise3a_part2, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+
+lm1_no_outliers = sleep75[-c(1,4),] # remove two outlies, obs 1 and 4
+lm1_outliers <- lm(sleep ~ age + educ + male + yngkid + totwrk + leis1 , data = lm1_no_outliers) # re-fit the model
+
+plot(lm1_outliers)
+```
+
+In regards to homoskedasticity, the residuals should roughly form a horizontal band around 0 and don't show any patters.
+Apparently no pattern in the residuals is present, but outliers may suggest an issue to be further investigated. 
+
+#### b) 
+
+Test for heteroskedasticity using the White test and the BreuschPegan test. In both cases the null is that the model variance is constant. Since the p-values of the BP test and of the White test are 0.78 and 0.98 respectively, we fail to reject the null of homocedasticity and therefore there is no enough evidence of heteroscedasticity presence. 
+
+```{r exercise3b, echo=FALSE, message=FALSE, warning=FALSE, include= FALSE}
+library(lmtest)
+bptest(lm1) # Breusch-Pegan Test 
+# In a Breusch-Pegan test, the null hypothesis is that the error variance is "homogeneous". 
+# If the obtained p-value is smaller than our conventional alpha level (0.05), we reject the null 
+# and accept the alternative hypothesis that the variance is not homogeneous.
+
+# as p-value>0.05 the conclusion is 
+# that the assumption of homoskedasticity is not violated
+
+white_lm(lm1) # White test
+# As in the case with the BP test, the obtained p-value is higher than 0.05, 
+# which indicates the absence of heteroskedasticity in the regression model.
+
+```
+
+
+#### c)
+
+The heteroskedasticity-robust standard errors are computed and proved to be sistematically smaller than the usual ones.
+
+```{r exercise3c1, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+lm1_rob<-coeftest(lm1, vcov = vcovHC(lm1, "HC1")) # compute the heteroskedasticity-robust SEs 
+stargazer(lm1_rob, digits=14, type="text")
+
+```
+
+```{r exercise3c2, echo=FALSE, message=FALSE, warning=FALSE, include= F}
+
+lm1_rob<-coeftest(lm1, vcov = vcovHC(lm1, "HC1")) # compute the heteroskedasticity-robust SEs 
+stargazer(lm1, lm1_rob, type = "text", digits=16, column.labels = c("Usual SE", "Robust SE"))
+
+```

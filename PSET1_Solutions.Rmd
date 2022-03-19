@@ -9,6 +9,26 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Question 1
+
+Which of the following are true as consequences of heteroskedasticiy?
+#### a) 
+There could be other linear and unbiased estimators that have a lower variance than the OLS estimators. This statement is **true**, heteroskedasticiy do not cause bias or inconsistency (as ommiting a variable for example), but OLS is no longer asymptotically efficient and OLS coefficients are no longer BLUE, therefore other more efficient estimators can be found.
+
+#### b)
+We can use the usual t statistic. This statement is **false**, variance estimators are biased in the presence of heteroskedasticiy and "because the OLS standard errors are based directly on these variances, they are no longer valid for constructing confidence intervals and t statistics.The usual OLS t statistics do not have t distributions in the presence of heteroskedasticity, and the problem is not resolved by using large sample sizes" (Wooldridge, 2019, p.263)
+
+#### c)
+The usual standard errors are always smaller than heteroskedasticityrobust standard errors. This statement is **false**
+
+
+## Question 2
+
+Write the transformed equation $sleep  = \beta_0 +\beta_1age+\beta_2educ+\beta_3male+\beta_4yngkid+\beta_5totwrk+\beta_6leis1+u$ that has a homoskedastic error term given its variance $Var$ and expected mean $E$.
+
+Given $Var(u|age, educ, male, yngkid, totwrk, leis1) = \sigma^2 h(totwrk)$, we have $h(x)=h(totwrk)$ which is a function of the explanatory variable that determines the heteroskedasticity. Therefore, $\sqrt{h(x)}=\sqrt{totwrk}$,and so the transformed equation is obtained by dividing the original equation by $\sqrt{totwrk}$, such as $\frac{sleep}{\sqrt{totwrk}}  = \frac{\beta_0}{\sqrt{totwrk}} +\frac{\beta_1age}{\sqrt{totwrk}}+\frac{\beta_2educ}{\sqrt{totwrk}}+\frac{\beta_3male}{\sqrt{totwrk}}+\frac{\beta_4yngkid}{\sqrt{totwrk}}+\beta_5\sqrt{totwrk}+\frac{\beta_6leis1}{\sqrt{totwrk}}+\frac{u}{\sqrt{totwrk}}$. The variance of the new residual is proportional to $totwrk$ becoming a constant.^[[*Reference 1*](https://www.youtube.com/watch?v=fbuc8Yv_xlE), [*Reference 2*](https://aborowska.github.io/teaching/eco2/Tutorial_Slides4.pdf)]
+
+\newpage
 ## Question 3
 
 Download the SLEEP75 data in the Wooldridge data package in R
@@ -16,7 +36,7 @@ Download the SLEEP75 data in the Wooldridge data package in R
 #### a) 
 First, run a standard OLS regression to estimate the model $sleep = \beta_0 +\beta_1age+\beta_2educ+\beta_3male+\beta_4yngkid+\beta_5totwrk+\beta_6leis1+u$, and draw a residual plot. What does the plot suggest about heteroskedasticity?
 
-```{r sleep75, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+```{r package_datasets, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 # install.packages("AER")
 # install.packages("wooldridge")
 # install.packages("stargazer")
@@ -26,7 +46,12 @@ First, run a standard OLS regression to estimate the model $sleep = \beta_0 +\be
 # install.packages("skedastic")
 # install.packages("car")
 # install.packages("sandwitch")
-
+# install.packages("huxtable")
+# install.packages("AICcmodavg")
+# install.packages("mfx")
+# install.packages("margins")
+library(margins)
+library(mfx)
 library(skedastic)
 library(jtools)
 library(stargazer)
@@ -37,8 +62,13 @@ library(sandwich)
 library(car)
 library(estimatr)
 library(texreg)
+library(AICcmodavg)
+
+# import datasets to be used
 data('sleep75',package = "wooldridge") #import dataset)
 force(sleep75)  # transform it to dataframe
+data(vote1, package = "wooldridge")
+force(vote1)
 
 ```
 
@@ -110,3 +140,147 @@ lm1_rob<-coeftest(lm1, vcov = vcovHC(lm1, "HC1")) # compute the heteroskedastici
 stargazer(lm1, lm1_rob, type = "text", digits=16, column.labels = c("Usual SE", "Robust SE"))
 
 ```
+
+## Question 4
+
+Objective: estimate the effect of the candidate's A campaign expenditure ($expend_A$) on whether A received a larger percentage of votes ($Votes_A$) than the national average in each district.
+
+#### a)
+
+Create a binary dependent variable that operationalizes what we try to estimate. This is done by doing an $ifelse$ command comparing the value of $Vote_a$ in each row with the mean of $Vote_a$ (national average).
+
+```{r exercise4a, echo=FALSE, message=FALSE, warning=FALSE, include= F}
+# vote1$national_average<-mean(vote1$voteA) = national average voteA is 50.5
+vote1$voteA_vs_national <- ifelse(vote1$voteA>mean(vote1$voteA),1,0) # create a new column called voteA_vs_national which takes 1 if voteA value is higher than the mean of the column VoteA or 0 otherwise
+
+```
+
+#### b and c)
+
+Write down a linear probability model as follow : $Vote_AvsNational  = \beta_0 +\beta_1expend_A+\beta_2expend_B+\beta_3share_A+u$.
+The results below present the model coefficients. While $expendA$ is statistically significant, this is not the case for $expendB$ which indicates one unit increase in candidate B expenditure decreases by 0.000394 $Vote_AvsNational$. $ShareA$ is also statistically signficant but with a positive and with a much higher magnitude effect, in other words one unit increase of shareA increases the dependent variable by 0.01. [*Vote1* documentation](https://rdrr.io/cran/wooldridge/man/vote1.html) inform the nature of these variables, so that one unit increase of $expend$ means an extra \$1000 expenditure by the given candidate campaign. $Share_A$ is a combination of $expend$ from both candidates times 100.   
+
+```{r exercise4b, echo=FALSE, message=FALSE, warning=FALSE}
+lm2 <- lm(voteA_vs_national ~ expendA + expendB + shareA, data = vote1) #LPM
+summ(lm2, digits = 6) # LPM with usual OLS standard errors
+
+```
+
+#### d)
+
+The graph below shows that the model predicts values higher and lower than the range 0-1, stressing one of the linear probability models.
+
+```{r exercise4d, echo=FALSE, message=FALSE, warning=FALSE}
+#plot predicted vs. actual values
+plot(x=predict(lm2), y=vote1$voteA_vs_national,
+     xlab='Predicted Values',
+     ylab='Actual Values',
+     main='Predicted vs. Actual Values',
+     col = ifelse(predict(lm2) < 0,'red',ifelse(predict(lm2)>1,'red','green')), pch = 19)
+abline(a=0, b=1)
+```
+
+#### e and f)
+
+write down a logit and probit versions of the same model.
+
+```{r exercise4e, echo=FALSE, message=FALSE, warning=FALSE, include= F}
+logit1 <- glm(voteA_vs_national ~ expendA + expendB + shareA, family = binomial(link = logit), data = vote1) #Logit model
+summary(logit1)
+probit1 <- glm(voteA_vs_national ~ expendA + expendB + shareA, family = binomial(link = probit), data = vote1) #Probit model
+summary(probit1)
+```
+$Expend_A$ coefficients are not signficant in both probit and logit models as in the LPM model. However, the confidence intervals are much higher in the probit and especially logit model than those from the LPM model.
+
+```{r exercise4f1, echo=FALSE, message=FALSE, warning=FALSE, fig.show="hold"}
+export_summs(lm2, logit1, probit1, scale = F, model.names = c("LPM", "Logit", "Probit"), error_format = "[{conf.low}, {conf.high}]")
+```
+
+```{r exercise4f2, echo=FALSE, message=FALSE, warning=FALSE, fig.show="hold"}
+plot_summs(lm2, logit1, probit1, scale = TRUE, robust = list(FALSE, "HC0", "HC3"), model.names = c("LPM", "Logit", "Probit"))
+```
+
+#### g)
+
+Compare the AICs of the logit and probit model. The lower the AIC value the better, in this case Probit model seems to have a better fit. 
+
+```{r exercise4g, echo=FALSE, message=FALSE, warning=FALSE, results = 'asis',fig.show="hold", out.width="90%"}
+models <- list(logit1, probit1)
+mod.names <- c('Logit', 'Probit')
+pander(aictab(cand.set = models, modnames = mod.names, second.ord = TRUE, nobs = NULL, sort = TRUE), style='rmarkdown')
+
+```
+
+#### h and i)
+
+ Get the average partial effect (AME) from the logit and probit model. One unit increase in the significant coefficients is associated in an increase of 0.53% in the dependent variable in the logit model and 0.47% in the probit model. However, looking at the margin (partial) effect at the average (MEM) these one units increase are associated with 2.8% and 2.2% increase for logit and probit models respectively.
+ 
+```{r exercise4h, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+logit_AME<-(logitmfx(voteA_vs_national ~ expendA + expendB + shareA, data = vote1, 
+          robust = F, # calculate robust SE
+          atmean = FALSE)) # average partial effect -"atmean" = "FALSE" calculates AMEs instead of MEMs
+
+probit_AME<-(probitmfx(voteA_vs_national ~ expendA + expendB + shareA, data = vote1, 
+          robust = F, # calculate robust SE
+          atmean = FALSE)) # average partial effect -"atmean" = "FALSE" calculates AMEs instead of MEMs
+
+# alternatively use margins command:
+logit_ape <- margins(logit1, type = "response", vcov = vcovHC(logit1, "HC1"))
+summary(logit_ape)
+probit_ape <- margins(probit1, type = "response", vcov = vcovHC(probit1, "HC1"))
+summary(probit_ape)
+```
+\newpage
+
+
+```{r exercise4i, echo=FALSE, message=FALSE, warning=FALSE, fig.show="hold"}
+logit_MEM<- (logitmfx(voteA_vs_national ~ expendA + expendB + shareA, data = vote1, 
+          robust = F, # calculate robust SE
+          atmean = T)) # average partial effect -"atmean" = "true" calculates MEMs instead of AMEs
+
+probit_MEM <-(probitmfx(voteA_vs_national ~ expendA + expendB + shareA, data = vote1, 
+          robust = F, # calculate robust SE
+          atmean = T)) # average partial effect -"atmean" = "true" calculates MEMs instead of AMEs
+
+export_summs(logit_AME, probit_AME, logit_MEM, probit_MEM, scale = F, digits=6, model.names = c("Logit AME", "Probit AME", "Logit MEM", "Logit MEM"))
+
+```
+
+
+#### j)
+Results at the 3rd quantile have higher magnitude than those in the 1st quantile for both Probit and Logit models.
+
+
+```{r exercise4j, echo=FALSE, message=FALSE, warning=FALSE, fig.show="hold"}
+logit_1q <- margins(logit1,
+        at = list(expendA= mean(vote1$expendA, na.rm = TRUE),
+                  shareA = mean(vote1$shareA, na.rm = TRUE),
+                  expendB = quantile(vote1$expendB, 0.25)), # expendB at the first quantile 
+        type = "response",
+        vcov = vcovHC(logit1, "HC1"))
+
+logit_3q <- margins(logit1,
+        at = list(expendA= mean(vote1$expendA, na.rm = TRUE),
+                  shareA = mean(vote1$shareA, na.rm = TRUE),
+                  expendB = quantile(vote1$expendB, 0.75)), # expendB at the third quantile 
+        type = "response",
+        vcov = vcovHC(logit1, "HC1"))
+
+probit_1q <- margins(probit1,
+        at = list(expendA= mean(vote1$expendA, na.rm = TRUE),
+                  shareA = mean(vote1$shareA, na.rm = TRUE),
+                  expendB = quantile(vote1$expendB, 0.25)), # expendB at the first quantile 
+        type = "response",
+        vcov = vcovHC(probit1, "HC1"))
+
+probit_3q <- margins(probit1,
+        at = list(expendA= mean(vote1$expendA, na.rm = TRUE),
+                  shareA = mean(vote1$shareA, na.rm = TRUE),
+                  expendB = quantile(vote1$expendB, 0.75)), # expendB at the third quantile 
+        type = "response",
+        vcov = vcovHC(probit1, "HC1"))
+
+export_summs(logit_1q, logit_3q, probit_1q, probit_3q, scale = F, digits=6, model.names = c("Logit 1Q", "Logit 3Q", "Probit 1Q", "Probit 3Q"))
+
+```
+

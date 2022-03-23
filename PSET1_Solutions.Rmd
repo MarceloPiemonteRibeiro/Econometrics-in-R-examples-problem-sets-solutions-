@@ -12,21 +12,24 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Question 1
 
 Which of the following are true as consequences of heteroskedasticiy?
+
 #### a) 
-There could be other linear and unbiased estimators that have a lower variance than the OLS estimators. This statement is **true**, heteroskedasticiy do not cause bias or inconsistency (as ommiting a variable for example), but OLS is no longer asymptotically efficient and OLS coefficients are no longer BLUE, therefore other more efficient estimators can be found.
+There could be other linear and unbiased estimators that have a lower variance (as the Weighted Least Squares Method WLS) than the OLS estimators. This statement is **true**, heteroskedasticiy do not cause bias or inconsistency (as ommiting a variable for example), but OLS is no longer asymptotically efficient and OLS coefficients are no longer BLUE, therefore other more efficient estimators can be found.
 
 #### b)
-We can use the usual t statistic. This statement is **false**, variance estimators are biased in the presence of heteroskedasticiy and "because the OLS standard errors are based directly on these variances, they are no longer valid for constructing confidence intervals and t statistics.The usual OLS t statistics do not have t distributions in the presence of heteroskedasticity, and the problem is not resolved by using large sample sizes" (Wooldridge, 2019, p.263)
+We can use the usual t statistic. This statement is **false**, variance estimators are biased in the presence of heteroskedasticiy and "because the OLS standard errors are based directly on these variances, they are no longer valid for constructing confidence intervals and t statistics.The usual OLS t statistics do not have t distributions in the presence of heteroskedasticity, and the problem is not resolved by using large sample sizes" (Wooldridge, 2019, p.263). In this case, we need to compute heterskedastcity-robust standard errors and robust t-statistics. 
+
 
 #### c)
-The usual standard errors are always smaller than heteroskedasticityrobust standard errors. This statement is **false**
+The usual standard errors are always smaller than heteroskedasticityrobust standard errors. This statement is **false**, the usal standard errors can be either smaller or larger than heretoskedasticity robust standard errors. Nevertheless,  in practice, robust standard errors are often found to be bigger
+than the usual standrd errors.
 
 
 ## Question 2
 
 Write the transformed equation $sleep  = \beta_0 +\beta_1age+\beta_2educ+\beta_3male+\beta_4yngkid+\beta_5totwrk+\beta_6leis1+u$ that has a homoskedastic error term given its variance $Var$ and expected mean $E$.
 
-Given $Var(u|age, educ, male, yngkid, totwrk, leis1) = \sigma^2 h(totwrk)$, we have $h(x)=h(totwrk)$ which is a function of the explanatory variable that determines the heteroskedasticity. Therefore, $\sqrt{h(x)}=\sqrt{totwrk}$,and so the transformed equation is obtained by dividing the original equation by $\sqrt{totwrk}$, such as $\frac{sleep}{\sqrt{totwrk}}  = \frac{\beta_0}{\sqrt{totwrk}} +\frac{\beta_1age}{\sqrt{totwrk}}+\frac{\beta_2educ}{\sqrt{totwrk}}+\frac{\beta_3male}{\sqrt{totwrk}}+\frac{\beta_4yngkid}{\sqrt{totwrk}}+\beta_5\sqrt{totwrk}+\frac{\beta_6leis1}{\sqrt{totwrk}}+\frac{u}{\sqrt{totwrk}}$. The variance of the new residual is proportional to $totwrk$ becoming a constant.^[[*Reference 1*](https://www.youtube.com/watch?v=fbuc8Yv_xlE), [*Reference 2*](https://aborowska.github.io/teaching/eco2/Tutorial_Slides4.pdf)]
+Given $Var(u|age, educ, male, yngkid, totwrk, leis1) = \sigma^2 h(totwrk)$, we have $h(x)=h(totwrk)$ which is a function of the explanatory variable that determines the heteroskedasticity, in other words $h(x)$ determines the heteroskedasticity of the error. Therefore, $\sqrt{h(x)}=\sqrt{totwrk}$,and so the transformed equation is obtained by dividing the original equation by $\sqrt{totwrk}$ and replacing the heteroskedastic error term with a homoscedastic error term, such that $\frac{sleep}{\sqrt{totwrk}}  = \frac{\beta_0}{\sqrt{totwrk}} +\frac{\beta_1age}{\sqrt{totwrk}}+\frac{\beta_2educ}{\sqrt{totwrk}}+\frac{\beta_3male}{\sqrt{totwrk}}+\frac{\beta_4yngkid}{\sqrt{totwrk}}+\beta_5\sqrt{totwrk}+\frac{\beta_6leis1}{\sqrt{totwrk}}+\frac{u}{\sqrt{totwrk}}$. The variance of the new residual is proportional to $totwrk$ becoming a constant.^[[*Reference 1*](https://www.youtube.com/watch?v=fbuc8Yv_xlE), [*Reference 2*](https://aborowska.github.io/teaching/eco2/Tutorial_Slides4.pdf)]
 
 \newpage
 ## Question 3
@@ -100,7 +103,7 @@ plot(lm1_outliers)
 ```
 
 In regards to homoskedasticity, the residuals should roughly form a horizontal band around 0 and don't show any patters.
-Apparently no pattern in the residuals is present, but outliers may suggest an issue to be further investigated. 
+Apparently no pattern in the residuals is present, but outliers may suggest an issue to be further investigated. The high values of the $R^2$ are unusual as well as the model statistics and coefficients.  
 
 #### b) 
 
@@ -157,8 +160,8 @@ vote1$voteA_vs_national <- ifelse(vote1$voteA>mean(vote1$voteA),1,0) # create a 
 
 #### b and c)
 
-Write down a linear probability model as follow : $Vote_AvsNational  = \beta_0 +\beta_1expend_A+\beta_2expend_B+\beta_3share_A+u$.
-The results below present the model coefficients. While $expendA$ is statistically significant, this is not the case for $expendB$ which indicates one unit increase in candidate B expenditure decreases by 0.000394 $Vote_AvsNational$. $ShareA$ is also statistically signficant but with a positive and with a much higher magnitude effect, in other words one unit increase of shareA increases the dependent variable by 0.01. [*Vote1* documentation](https://rdrr.io/cran/wooldridge/man/vote1.html) inform the nature of these variables, so that one unit increase of $expend$ means an extra \$1000 expenditure by the given candidate campaign. $Share_A$ is a combination of $expend$ from both candidates times 100.   
+Write down a linear probability model as follow : $P(Vote_AvsNational=1|expend_A, expend_B, share_A)  = \beta_0 +\beta_1expend_A+\beta_2expend_B+\beta_3share_A+u$.
+The results below present the model coefficients. While $expendA$ is not statistically significant, this is not the case for $expendB$ which indicates one unit increase in candidate B expenditure decreases by 0.000394 $Vote_AvsNational$. $ShareA$ is also statistically signficant but with a positive and with a much higher magnitude effect, in other words one unit increase of shareA increases the dependent variable by 0.01. [*Vote1* documentation](https://rdrr.io/cran/wooldridge/man/vote1.html) inform the nature of these variables, so that one unit increase of $expend$ means an extra \$1000 expenditure by the given candidate campaign. $Share_A$ is a combination of $expend$ from both candidates times 100.   
 
 ```{r exercise4b, echo=FALSE, message=FALSE, warning=FALSE}
 lm2 <- lm(voteA_vs_national ~ expendA + expendB + shareA, data = vote1) #LPM
@@ -168,7 +171,7 @@ summ(lm2, digits = 6) # LPM with usual OLS standard errors
 
 #### d)
 
-The graph below shows that the model predicts values higher and lower than the range 0-1, stressing one of the linear probability models.
+The graph below shows that the model predicts values higher and lower than the range 0-1, stressing one of the linear probability model's drawback.
 
 ```{r exercise4d, echo=FALSE, message=FALSE, warning=FALSE}
 #plot predicted vs. actual values
@@ -182,7 +185,7 @@ abline(a=0, b=1)
 
 #### e and f)
 
-write down a logit and probit versions of the same model.
+write down a logit and probit versions of the same model. $Pr(Vote_AvsNational=1|expend_A, expend_B, share_A)  = G(\beta_0 +\beta_1expend_A+\beta_2expend_B+\beta_3share_A)$, such that $G=\Lambda()$ represents the link function of the Logit CDF while $G=\Phi()$ the Probit CDF.
 
 ```{r exercise4e, echo=FALSE, message=FALSE, warning=FALSE, include= F}
 logit1 <- glm(voteA_vs_national ~ expendA + expendB + shareA, family = binomial(link = logit), data = vote1) #Logit model
@@ -190,7 +193,7 @@ summary(logit1)
 probit1 <- glm(voteA_vs_national ~ expendA + expendB + shareA, family = binomial(link = probit), data = vote1) #Probit model
 summary(probit1)
 ```
-$Expend_A$ coefficients are not signficant in both probit and logit models as in the LPM model. However, the confidence intervals are much higher in the probit and especially logit model than those from the LPM model.
+$Expend_A$ coefficients are not signficant in both probit and logit models as in the LPM model. However, we may estimate that, in both models, $expend_A$ has a positive effect on the percentage of votes received by Candidate A in comparison to the national average. Moreover, the confidence intervals are much higher in the probit and especially logit model than those from the LPM model.
 
 ```{r exercise4f1, echo=FALSE, message=FALSE, warning=FALSE, fig.show="hold"}
 export_summs(lm2, logit1, probit1, scale = F, model.names = c("LPM", "Logit", "Probit"), error_format = "[{conf.low}, {conf.high}]")
@@ -213,7 +216,7 @@ pander(aictab(cand.set = models, modnames = mod.names, second.ord = TRUE, nobs =
 
 #### h and i)
 
- Get the average partial effect (AME) from the logit and probit model. One unit increase in the significant coefficients is associated in an increase of 0.53% in the dependent variable in the logit model and 0.47% in the probit model. However, looking at the margin (partial) effect at the average (MEM) these one units increase are associated with 2.8% and 2.2% increase for logit and probit models respectively.
+ Get the average partial effect (AME) from the logit and probit model. One unit increase in the significant coefficients is associated in an increase of 0.53% in the dependent variable in the logit model and 0.47% in the probit model. However, looking at the margin (partial) effect at the average (MEM) these one units increase are associated with 2.8% and 2.2% increase for logit and probit models respectively.The Logit and Probit AME tend to be smaller than the MEM for all variables.
  
 ```{r exercise4h, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 logit_AME<-(logitmfx(voteA_vs_national ~ expendA + expendB + shareA, data = vote1, 

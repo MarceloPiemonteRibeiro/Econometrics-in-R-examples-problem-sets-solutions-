@@ -1,0 +1,326 @@
+---
+title: "PSET 2 Stats ii RIPS"
+author: "Marcelo Piemonte Ribeiro"
+date: "4/18/2022"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+### a)
+Estimate the effect of happiness (happiness) on the belief that there is no need for democracy in the country (nodemo). This simple estimation can be summarized by $nodemo = \beta_0 +\beta_1happiness+u$. The table below shows the significant negative association between them.
+
+```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+setwd("C:/Users/Ribeiro/OneDrive/Documents/OneDrive/IHEID/Semester 4/Statistics for International Relations Research II/PSET2")
+library(haven)
+library(margins)
+library(mfx)
+library(skedastic)
+library(jtools)
+library(stargazer)
+library(AER)
+library(pander)
+library(tidyverse)
+library(sandwich)
+library(car)
+library(estimatr)
+library(texreg)
+library(AICcmodavg)
+# install.packages('fastDummies')
+# tinytex::install_tinytex()
+library('fastDummies')
+
+library("rmarkdown")
+library("tinytex")
+
+
+```
+
+
+```{r q1a_ols, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
+
+cgss06 <- read_dta('./cgss06.dta') # import dataset
+ols <- lm(nodemo ~ happiness, data = cgss06) # run regression
+stargazer(ols, header=FALSE, type='html',title="Table 1")
+
+```
+
+
+### b)
+To perform a pooled cross section, a  new variable using the date of the survey was created indicating the 13 weeks when the surveys were conducted. In addition, 13 new dummy variables were created, and 12 of them were added to the model as follow: $nodemo = \beta_0 +\beta_1happiness+week_2+ week_3+ week_4+ week_5+ week_6+ week_7+ week_8+ week_9+ week_{10}+ week_{11}+ week_{12}+ week_{13}+ u$. The results changed with the inclusion of the time fixed effects, *happiness* still has the same negative significant effect but slightly weaker. However, *week_{11}* and *week_{12}* are significant in relation to the reference *week_1*. Therefore, there are significant differences between the first week of survey and the *week_{11}* and, especially, *week_{12}*, while for the rest of the weeks, the intercept isn't significantly different from *week_1*. The coefficient of *week_{11}* implies that, holding *happiness* constant, *nodemo* is -0.27 lower in *week_{11}* and -0.52 in *week_{12}* than *week_1*, this effect in *nodemo* is separate from the one in *nodemo* due to *happiness* variation. *week_{11}* and *week_{12}* coefficients represent drops in *nodemo* for reasons not captured by the independent variables, in this case *happiness*.
+
+The week fixed effects allow us to verify over-time changes of the dependent variable *nodemo* by allowing the intercept to have different values in each time period (weeks). A F-statistic test rejected the null hypothesis that all coefficients on week dummies are zero. By adding these dummies we allow the possibility of the population to have different distributions in different time periods, so the intercept can differ across periods (weeks). Therefore, we should add the week-fixed effect if we suspect the relation between these variables is not constant across the weeks.
+
+```{r q1b_subset, echo=FALSE, message=FALSE, warning=FALSE, fig.pos='h'}
+
+# pooled, where t=week, add week dummies
+# create variable indicating the weeks
+# unique(sort(cgss06$date)) unique dates
+cgss06<-cgss06 %>% 
+  mutate(week = cut.Date(date, breaks = "1 week", labels = FALSE)) %>% 
+  arrange(date) # add column indicating the weeks
+# unique(sort(cgss06$week)) 13 weeks (dummies) created
+
+cgss06 <- dummy_cols(cgss06, select_columns = 'week') # add week dummies to the dataset
+pooled_week <- lm(nodemo ~ happiness + week_2+ week_3+ week_4+ week_5+ week_6+ week_7+ week_8+ week_9+ week_10+ week_11+ week_12+ week_13, data = cgss06) # fixed effects 
+
+#export_summs(ols, pooled_week, scale = T, model.names = c("OLS", "Pooled"), error_format = "[{conf.low}, {conf.high}]", digits=4) # results
+```
+
+```{r q1b_pooled, echo=FALSE, message=FALSE, warning=FALSE, fig.pos='h', results='asis'}
+model.lst = list(ols, pooled_week)
+stargazer(ols, pooled_week,
+          type = "html",
+          title="Table 2",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("OLS", "Pooled-week"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+
+```
+
+```{r q1b_ftest, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+# If all coefficients on week dummies are jointly zero, the intercept does not vary at all over time.
+# Test it using a F-test.
+linearHypothesis(pooled_week, c(
+                        "week_2 = 0",
+                        "week_3 = 0", 
+                        "week_4 = 0", 
+                        "week_5 = 0",
+                        "week_6 = 0",
+                        "week_7 = 0",
+                        "week_8 = 0",
+                        "week_9 = 0",
+                        "week_10 =0",
+                        "week_11 =0",
+                        "week_12 =0",
+                        "week_13 =0"))
+
+```
+### c)
+
+The previous exercise result assumed constant effect of the explanatory variable across the weeks. To verify if in any week the main effect was substantially larger or smaller than the first week, in other words to check whether *happiness* has varying effects on the outcome over time, interacting it with week fixed effect dummies is necessary, such as $nodemo = \beta_0 +\beta_1happiness^*weeks +u$. Interacting it with the time dummies, allows the slope coefficients to vary across different periods. 
+
+The main effect of *happiness* shows its estimated effect in *nodemo* for the base *week_1*. The table below shows how *happiness* coefficients vary , the interacted coefficients show the estimated differences in the effect of *happiness* on *nodemo* from *week_1* to each week, respectively. For example, for the sample of *week_5*, the estimated effect of *happiness* on the outcome is roughly 0.075 (= -0.2980+0.3735), therefore no longer a negative effect.  A F-statistic test rejected the null hypothesis that all interacted coefficients are zero
+
+```{r q1c_factor_stargazer, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+factor <- lm(nodemo ~ happiness*factor(week), data = cgss06) # interact 
+```
+
+```{r q1c_factor_stargazer_models,echo=FALSE, message=FALSE, warning=FALSE, fig.pos='h',results='asis'}
+
+model.lst = list(ols, pooled_week, factor)
+stargazer(ols, pooled_week, factor,
+          title="Table 3",
+          type = "html",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("OLS", "Pooled-week", "Pooled_week-interaction"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+
+```
+
+```{r q1c_ftest, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+# Test it using a F-test.
+linearHypothesis(factor, c(
+                        " happiness:factor(week)2 = 0",
+                        " happiness:factor(week)3 = 0", 
+                        " happiness:factor(week)4 = 0", 
+                        " happiness:factor(week)5 = 0",
+                        " happiness:factor(week)6 = 0",
+                        " happiness:factor(week)7 = 0",
+                        " happiness:factor(week)8 = 0",
+                        " happiness:factor(week)9 = 0",
+                        " happiness:factor(week)10 =0",
+                        " happiness:factor(week)11 =0",
+                        " happiness:factor(week)12 =0",
+                        " happiness:factor(week)13 =0"))
+
+```
+                    
+### d)
+
+First of all, as done in Jiang, J., & Yang, D. L. (2016) p.607, we restrict our dataset such that we exclude respondents from provinces where all interviews were conducted either before or after 26/09. As in the paper, the number of provinces included in the sample decreases from 28 to 12. 
+
+It is possible to verify the mean performing the regression $nodemo = \beta_0 +\beta_1shanghai +u$. While the mean value of *nodemo* outside Shaghai was 0.0623 (the intercept of the below regression result), in shanghai this value was 0.1440. The significant p-value confirms the difference of these averages. 
+
+```{r q1d_means, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+
+# filter the dataset as 
+cgss06_restrict<-cgss06 %>% group_by(provid) %>% 
+  filter(min(date) < as.Date('2006-09-26'),
+         max(date) > as.Date('2006-09-26')) %>% 
+  ungroup() 
+
+unique(sort(cgss06_restrict$provid)) # see the remaining provinces
+
+# unique pairs 
+unique(cgss06[,c('provid','date')]) # we can verify that the filtering above is accurate, all the surveys taken either before or after the purge are no longer present in the dataset
+
+```
+
+```{r q1d_reg, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
+
+cgss06_treat<-subset(cgss06_restrict, treat==1) # treat=1 indicates all surveys performed after the purge (26/09) 
+meandiff<-lm(nodemo ~ shanghai, data = cgss06_treat)
+stargazer(meandiff, header=FALSE, type='html',title="Table 4")
+```
+
+### e)
+
+The previous exercise compares the averages only taking into account weeks after the purge, therefore, it does not consider whether *nodemo* in Shanghai and in other regions differed or not before the purge, which could modify such difference. The result below compares the same averages of the previous exercise but restricting the data to those districts where respondents were surveyed before the purge. The insignificant p-value shows that the difference between the regions was negligible before the purge.
+
+```{r q1e, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
+
+cgss06_control<-subset(cgss06_restrict, treat==0)
+meandiff_control<-lm(nodemo ~ shanghai, data = cgss06_control)
+stargazer(meandiff_control, header=FALSE, type='html',title="Table 4")
+```
+
+### f)
+
+The charts below compares the *nodemo* averages of Shanghai and other regions respondents according to the weeks and days the surveys took place and the periods before and after the purge. A standard DiD equation would be $nodemo = \beta_0 +\beta_1shanghai^*treat +u$, where *shanghai* determines the two control and treatment groups while *treat* indicate the survey's dates before and after the purge.
+
+```{r q1f_ggplot, echo=FALSE, message=FALSE, warning=FALSE, include=T}
+
+cgss06_restrict %>%
+  mutate(treat_condition = if_else(shanghai==1, 
+                                   "Shanghai (treatment)", 
+                                   "Elsewhere (control)")) %>% 
+  ggplot(aes(week, nodemo, color = treat_condition)) +
+  stat_summary(fun = "mean", geom = "line") +
+  labs(x = "Weeks", y = "Nodemo, Average") +
+  scale_color_discrete(name = "Treatment Conditions") + scale_x_continuous(breaks = seq(1, 11, by = 1)) + 
+  geom_vline(xintercept = 4.3)+ 
+  theme_minimal()
+
+```
+
+```{r q1f_ggplot2, echo=FALSE, message=FALSE, warning=FALSE, include=T}
+
+cgss06_restrict %>%
+  mutate(treat_condition = if_else(shanghai==1, 
+                                   "Shanghai (treatment)", 
+                                   "Elsewhere (control)")) %>% 
+  ggplot(aes(date, nodemo, color = treat_condition)) +
+  stat_summary(fun = "mean", geom = "line") +
+  labs(x = "Date", y = "Nodemo, Average") +
+  scale_color_discrete(name = "Treatment Conditions") +  
+  geom_vline(xintercept = as.Date("2006-09-26"))+ 
+  theme_minimal()
+
+```
+
+```{r q1f_ggplot3, echo=FALSE, message=FALSE, warning=FALSE, include=T}
+
+cgss06_restrict %>%
+  mutate(treat_condition = if_else(shanghai==1, 
+                                   "Shanghai (treatment)", 
+                                   "Elsewhere (control)")) %>% 
+  ggplot(aes(treat, nodemo, color = treat_condition)) +
+  stat_summary(fun = "mean", geom = "line") +
+  labs(x = "Before-After the purge", y = "Nodemo, Average") +
+  scale_color_discrete(name = "Treatment Conditions") + scale_x_continuous(breaks = seq(0,1, by = 1)) + 
+  scale_y_continuous(breaks = seq(-0.1,0.3, by = 0.05)) +
+  theme_minimal()
+
+```
+
+```{r q1f_reg, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
+DiD0 <- lm(nodemo ~ shanghai*treat, data = cgss06_restrict)
+stargazer(DiD0, header=FALSE, type='html',title="Table 5")
+```
+
+In the above model, the DiD estimator is the coefficient on the interaction term, 0.1480, which shows the difference in the average change over time for the treatment and control groups. It confirms the previous exercises as *shanghai* coefficients difference (0.1440-(-0.004)=0.148) is equal the interacted term. Therefore, the purge increased *nodemo* by 0.148.
+
+### g and h)
+
+So far, we assumed all was constant except the effect of the purge and that the impact of the purge was the same everywhere. 
+Including these fixed effects should help the estimation as they go in line with the needed assumptions of a DiD model. Such model assumes compositional change across the weeks before and after the purge and that time trends might not be comparable across the treated and control groups. DiD here works because the assumption is that people in Shanghai were more treated than the rest, this is why we include the Shanghai dummy.
+
+### i and j)
+
+The DiD equation can be rewritten as follow: $nodemo = \beta_0 +\beta_1shanghai^*treat + \beta_2province +\beta_3date + \beta_4age + \beta_5college + \beta_6working + \beta_7party +u$. Comparing to previous results, the below table presents a higher effect of the interacted term, indicating the relatively stronger effect in Shanghai. Also, *treat* becomes no longer significant, but *date* does as well as the other independent variable, except *shanghai*. 
+
+```{r q1i_reg_extended, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
+
+DiD1 <- lm(nodemo ~ shanghai*treat + province + date + age + college + working + party, data = cgss06_restrict)
+stargazer(DiD1, header=FALSE, type='html',title="Table 6")
+```
+
+### j)
+
+The cut-off points were determined by the variable *treat* which takes the date of 26/09. To simulate other cutoffs, new variables were created: *treat_1* equals 19/09, *treat_2* 3/10, *treat_3* 10/10 and *treat_4* 17/10. 
+
+```{r q1j_reg_extended, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+
+cgss06_restrict$treat_1 <-ifelse(cgss06_restrict$date>"2006-09-18",1,0)
+cgss06_restrict$treat_2 <-ifelse(cgss06_restrict$date>"2006-10-02",1,0)
+cgss06_restrict$treat_3 <-ifelse(cgss06_restrict$date>"2006-10-09",1,0)
+cgss06_restrict$treat_4 <-ifelse(cgss06_restrict$date>"2006-10-16",1,0)
+
+DiD2 <- lm(nodemo ~ shanghai*treat_1 + province + date + age + college + working + party, data = cgss06_restrict)
+DiD3 <- lm(nodemo ~ shanghai*treat_2 + province + date + age + college + working + party, data = cgss06_restrict)
+DiD4 <- lm(nodemo ~ shanghai*treat_3 + province + date + age + college + working + party, data = cgss06_restrict)
+DiD5 <- lm(nodemo ~ shanghai*treat_4 + province + date + age + college + working + party, data = cgss06_restrict)
+
+```
+
+```{r q1j_stargazer_models,echo=FALSE, message=FALSE, warning=FALSE, fig.pos='h',results='asis'}
+
+model.lst = list(DiD0, DiD1, DiD2, DiD3, DiD4, DiD5)
+stargazer(DiD0, DiD1, DiD2, DiD3, DiD4, DiD5,
+          title="Table 7",
+          type = "html",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("No control", "Purge 26/09", "Purge 19/09", "Purge 03/10", "Purge 10/10", "Purge 17/10"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+
+```

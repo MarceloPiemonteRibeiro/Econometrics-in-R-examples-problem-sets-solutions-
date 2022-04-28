@@ -1,7 +1,7 @@
 ---
 title: "PSET 2 Stats ii RIPS"
-author: "Marcelo Piemonte Ribeiro"
-date: "4/18/2022"
+author: "Marcelo Piemonte Ribeiro & Abhilash Prasann"
+date: "4/28/2022"
 output:
   html_document:
     df_print: paged
@@ -15,7 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Question 1
 
 ### a)
-Estimate the effect of happiness (happiness) on the belief that there is no need for democracy in the country (nodemo). This simple estimation can be summarized by $nodemo = \beta_0 +\beta_1happiness+u$. The table below shows the significant negative association between them.
+
+Estimate the effect of happiness (happiness) on the belief that there is no need for democracy in the country (nodemo). This simple estimation can be summarized by $nodemo = \beta_0 +\beta_1happiness+u$. The table below shows the statistically significant negative association between them. Thus, an increase of the effect of happiness is negatively associated with the belief that there is no need for democracy, in other words the happier you are the more you believe on the necessity of democracy. However, this is a "silly" regression and we can't conclude that.
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 setwd("C:/Users/Ribeiro/OneDrive/Documents/OneDrive/IHEID/Semester 4/Statistics for International Relations Research II/PSET2")
@@ -54,7 +55,8 @@ stargazer(ols, header=FALSE, type='html',title="Table 1")
 
 
 ### b)
-To perform a pooled cross section, a  new variable using the date of the survey was created indicating the 13 weeks when the surveys were conducted. In addition, 13 new dummy variables were created, and 12 of them were added to the model as follow: $nodemo = \beta_0 +\beta_1happiness+week_2+ week_3+ week_4+ week_5+ week_6+ week_7+ week_8+ week_9+ week_{10}+ week_{11}+ week_{12}+ week_{13}+ u$. The results changed with the inclusion of the time fixed effects, *happiness* still has the same negative significant effect but slightly weaker. However, *week_{11}* and *week_{12}* are significant in relation to the reference *week_1*. Therefore, there are significant differences between the first week of survey and the *week_{11}* and, especially, *week_{12}*, while for the rest of the weeks, the intercept isn't significantly different from *week_1*. The coefficient of *week_{11}* implies that, holding *happiness* constant, *nodemo* is -0.27 lower in *week_{11}* and -0.52 in *week_{12}* than *week_1*, this effect in *nodemo* is separate from the one in *nodemo* due to *happiness* variation. *week_{11}* and *week_{12}* coefficients represent drops in *nodemo* for reasons not captured by the independent variables, in this case *happiness*.
+
+To perform a pooled cross section, a  new variable using the dates of the surveys was created indicating the 13 weeks when each one of the surveys were conducted. In addition, 13 new dummy variables were created indicating the latter, and 12 of them were added to the model as follow: $nodemo = \beta_0 +\beta_1happiness+ week_2+ week_3+ week_4+ week_5+ week_6+ week_7+ week_8+ week_9+ week_{10}+ week_{11}+ week_{12}+ week_{13}+ u$. The results changed with the inclusion of the time fixed effects, *happiness* still has the same negative significant effect but slightly weaker. However, *week_{11}* and *week_{12}* are significant in relation to the reference *week_1*. Therefore, there are significant differences between the first week of survey and the *week_{11}* and, especially, *week_{12}*, while for the rest of the weeks, the intercepts aren't significantly different from *week_1*. The coefficient of *week_{11}* implies that the effect of *happiness* is -0.27 in *week_{11}* and -0.52 in *week_{12}* and no longer -0.009 from the *week_1*, this effect in *nodemo* is separate from the one in *nodemo* due to *happiness* variation. *week_{11}* and *week_{12}* coefficients represent drops in *nodemo* for reasons not captured by the independent variables, in this case *happiness*.
 
 The week fixed effects allow us to verify over-time changes of the dependent variable *nodemo* by allowing the intercept to have different values in each time period (weeks). A F-statistic test rejected the null hypothesis that all coefficients on week dummies are zero. By adding these dummies we allow the possibility of the population to have different distributions in different time periods, so the intercept can differ across periods (weeks). Therefore, we should add the week-fixed effect if we suspect the relation between these variables is not constant across the weeks.
 
@@ -119,9 +121,9 @@ linearHypothesis(pooled_week, c(
 ```
 ### c)
 
-The previous exercise result assumed constant effect of the explanatory variable across the weeks. To verify if in any week the main effect was substantially larger or smaller than the first week, in other words to check whether *happiness* has varying effects on the outcome over time, interacting it with week fixed effect dummies is necessary, such as $nodemo = \beta_0 +\beta_1happiness^*weeks +u$. Interacting it with the time dummies, allows the slope coefficients to vary across different periods. 
+The previous exercise result assumed constant effect of the explanatory variable across the weeks. To verify if in any week the main effect was substantially larger or smaller than the first week, in other words to check whether *happiness* has varying effects on the outcome over time, interacting it with week fixed effect dummies is necessary, such as $nodemo = \beta_0 + \beta_1happiness + \beta_2weeks +\beta_3happiness^*weeks +u$. Interacting it with the time dummies, allows the slope coefficients to vary across different periods. 
 
-The main effect of *happiness* shows its estimated effect in *nodemo* for the base *week_1*. The table below shows how *happiness* coefficients vary , the interacted coefficients show the estimated differences in the effect of *happiness* on *nodemo* from *week_1* to each week, respectively. For example, for the sample of *week_5*, the estimated effect of *happiness* on the outcome is roughly 0.075 (= -0.2980+0.3735), therefore no longer a negative effect.  A F-statistic test rejected the null hypothesis that all interacted coefficients are zero
+The main effect of *happiness* shows its estimated effect in *nodemo* for the base *week_1*. The table below shows how *happiness* coefficients vary , the interacted coefficients show the estimated differences in the effect of *happiness* on *nodemo* from *week_1* to each week, respectively. For example, for the sample of *week_5*, the estimated effect of *happiness* on the outcome is roughly 0.075 (= -0.2980+0.3735), therefore no longer a negative effect.  A F-statistic test rejected the null hypothesis that all interacted coefficients are zero. The table below show that most of the interactions are statistically significant, which could indicate that *happiness* could be very subjective and volatile, maybe creating a measurement error and threatening the results. 
 
 ```{r q1c_factor_stargazer, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 factor <- lm(nodemo ~ happiness*factor(week), data = cgss06) # interact 
@@ -173,22 +175,24 @@ linearHypothesis(factor, c(
                     
 ### d)
 
-First of all, as done in Jiang, J., & Yang, D. L. (2016) p.607, we restrict our dataset such that we exclude respondents from provinces where all interviews were conducted either before or after 26/09. As in the paper, the number of provinces included in the sample decreases from 28 to 12. 
+First of all, as done in Jiang, J., & Yang, D. L. (2016) p.607, we restrict our dataset such that we exclude respondents from provinces where all interviews were conducted either before or after 26/09.
 
-It is possible to verify the mean performing the regression $nodemo = \beta_0 +\beta_1shanghai +u$. While the mean value of *nodemo* outside Shaghai was 0.0623 (the intercept of the below regression result), in shanghai this value was 0.1440. The significant p-value confirms the difference of these averages. 
+This exercise item and the following one follow *(Wooldridge, J. M., 2019)* ^[Wooldridge, J. M. (2019). Introductory econometrics: A modern approach. Cengage learning]  p(432) example.
+
+It is possible to verify the difference of averages performing the regression $nodemo = \beta_0 +\beta_1shanghai +u$. While the mean value of *nodemo* outside Shaghai was -0.019 (the intercept of the below regression result), in shanghai this value was 0.225. The significant p-value confirms the meaningful difference of the averages in Shanghai and elsewhere. 
 
 ```{r q1d_means, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 
 # filter the dataset as 
-cgss06_restrict<-cgss06 %>% group_by(provid) %>% 
+cgss06_restrict<-cgss06 %>% group_by(local_num) %>% 
   filter(min(date) < as.Date('2006-09-26'),
          max(date) > as.Date('2006-09-26')) %>% 
   ungroup() 
 
-unique(sort(cgss06_restrict$provid)) # see the remaining provinces
+unique(sort(cgss06_restrict$local_num)) # see the remaining provinces
 
 # unique pairs 
-unique(cgss06[,c('provid','date')]) # we can verify that the filtering above is accurate, all the surveys taken either before or after the purge are no longer present in the dataset
+unique(cgss06[,c('local_num','date')]) # we can verify that the filtering above is accurate, all the surveys taken either before or after the purge are no longer present in the dataset
 
 ```
 
@@ -201,7 +205,7 @@ stargazer(meandiff, header=FALSE, type='html',title="Table 4")
 
 ### e)
 
-The previous exercise compares the averages only taking into account weeks after the purge, therefore, it does not consider whether *nodemo* in Shanghai and in other regions differed or not before the purge, which could modify such difference. The result below compares the same averages of the previous exercise but restricting the data to those districts where respondents were surveyed before the purge. The insignificant p-value shows that the difference between the regions was negligible before the purge.
+The previous exercise compares the averages only taking into account weeks after the purge, therefore, it does not consider whether *nodemo* in Shanghai and in other regions differed or not before the purge. The result below compares the same averages of the previous exercise but restricting the data to those districts where respondents were surveyed before the purge. The significant p-value shows that the difference between the regions was not negligible before the purge. The potential problem is the pre-existent difference between these regions, making inaccurate to use the previous exercise item results to drew conclusions.
 
 ```{r q1e, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
 
@@ -212,7 +216,7 @@ stargazer(meandiff_control, header=FALSE, type='html',title="Table 4")
 
 ### f)
 
-The charts below compares the *nodemo* averages of Shanghai and other regions respondents according to the weeks and days the surveys took place and the periods before and after the purge. A standard DiD equation would be $nodemo = \beta_0 +\beta_1shanghai^*treat +u$, where *shanghai* determines the two control and treatment groups while *treat* indicate the survey's dates before and after the purge.
+The charts below compares the *nodemo* averages of Shanghai and other regions respondents according to the weeks and days the surveys took place and the periods before and after the purge. A standard DiD equation would be $nodemo = \beta_0 +\beta_1shanghai + \beta_2treat +\beta_3shanghai^*treat +u$, where *shanghai* determines the control and treatment groups while *treat* indicate the survey's dates before and after the purge.
 
 ```{r q1f_ggplot, echo=FALSE, message=FALSE, warning=FALSE, include=T}
 
@@ -224,7 +228,7 @@ cgss06_restrict %>%
   stat_summary(fun = "mean", geom = "line") +
   labs(x = "Weeks", y = "Nodemo, Average") +
   scale_color_discrete(name = "Treatment Conditions") + scale_x_continuous(breaks = seq(1, 11, by = 1)) + 
-  geom_vline(xintercept = 4.3)+ 
+  geom_vline(xintercept = 4.28)+ #4.28 indicates 26/09 that was a Tuesday (1week/7days=0.1428)
   theme_minimal()
 
 ```
@@ -264,16 +268,21 @@ DiD0 <- lm(nodemo ~ shanghai*treat, data = cgss06_restrict)
 stargazer(DiD0, header=FALSE, type='html',title="Table 5")
 ```
 
-In the above model, the DiD estimator is the coefficient on the interaction term, 0.1480, which shows the difference in the average change over time for the treatment and control groups. It confirms the previous exercises as *shanghai* coefficients difference (0.1440-(-0.004)=0.148) is equal the interacted term. Therefore, the purge increased *nodemo* by 0.148.
+In the above model, the DiD estimator is the coefficient on the interaction term, 0.174, which shows the statistically signficant difference in the average change over time for the treatment and control groups. It confirms the previous exercises as *shanghai* coefficients difference (0.225-(-0.051)=0.174) is equal the interacted term. Therefore, the purge increased *nodemo* by 0.174 more in shanghai than elsewhere.
 
-### g and h)
+### g)
 
-So far, we assumed all was constant except the effect of the purge and that the impact of the purge was the same everywhere. 
-Including these fixed effects should help the estimation as they go in line with the needed assumptions of a DiD model. Such model assumes compositional change across the weeks before and after the purge and that time trends might not be comparable across the treated and control groups. DiD here works because the assumption is that people in Shanghai were more treated than the rest, this is why we include the Shanghai dummy.
+Adding region fixed effects can improve the estimation because it controls the regions (districts) unobserved intrinsic factors that could be associated with the studied variables - given China's regional diversity, controlling for such differences can improve the estimation. 
+
+However, this is not necessarily the case for time fixed effects. In general, the latter support the estimation by dealing with any long-term/seasonal trend which could affect the variables studied during the period of analysis. Given that the surveys were conducted only in 3 months, we could argue that there was short time for the occurrence of any systematic time trend.    
+
+### h)
+
+DiD estimations can be threaten by the existence of compositional change, in other words, people surveyed before and after the studied external event (in this case, the purge) could present systematic differences (e.g., different ages, income, etc.). This could happened for example due to the research design, where enumerators collect data from a specific group of people first (before the purge) then (after it) move to other groups. Therefore, adding individual-level control variables is important to deal with the compositional change issue.
 
 ### i and j)
 
-The DiD equation can be rewritten as follow: $nodemo = \beta_0 +\beta_1shanghai^*treat + \beta_2province +\beta_3date + \beta_4age + \beta_5college + \beta_6working + \beta_7party +u$. Comparing to previous results, the below table presents a higher effect of the interacted term, indicating the relatively stronger effect in Shanghai. Also, *treat* becomes no longer significant, but *date* does as well as the other independent variable, except *shanghai*. 
+The DiD equation can be rewritten as follow: $nodemo = \beta_0 + \beta_1shanghai + \beta_2treat + \beta_3shanghai^*treat + \beta_4province +\beta_5date + \beta_6age + \beta_7college + \beta_8working + \beta_9party +u$. Comparing to previous results, the below table presents a lower effect of the interacted term, indicating the relatively lower effect in Shanghai when considering other factors (but still signficant, then confirming the relatively stronger effect of the purge in Shanghai), which proved to be statistically significant, them influencing partly such means difference. Several control variables proved to be statistically significant, indicating the importance to include them in the estimation. 
 
 ```{r q1i_reg_extended, echo=FALSE, message=FALSE, warning=FALSE,results='asis'}
 
@@ -281,9 +290,31 @@ DiD1 <- lm(nodemo ~ shanghai*treat + province + date + age + college + working +
 stargazer(DiD1, header=FALSE, type='html',title="Table 6")
 ```
 
-### j)
+### k)
 
-The cut-off points were determined by the variable *treat* which takes the date of 26/09. To simulate other cutoffs, new variables were created: *treat_1* equals 19/09, *treat_2* 3/10, *treat_3* 10/10 and *treat_4* 17/10. 
+The cut-off points were determined by the variable *treat* which takes the date of 26/09. To simulate other cutoffs, new variables were created: *treat_1* equals 19/09, *treat_2* 3/10, *treat_3* 10/10 and *treat_4* 17/10. Similarly to the paper, the interacted term coefficients presented a U-shape pattern according to the cut-offs dates.
+
+As we see in the graph, the *nodemo* line for Shanghai remains relatively constant in the first 2 weeks after the purge before suddenly increasing. The non-Shanghai areas on the other hand show a significant decrease in the *nodemo* variable for the first two weeks after the purge before rocketing up sharply and converging to the Shanghai *nodemo* line. We hypothesize, that the reason for this is that the fall in *nodemo* in the non-Shanghai area was a more immediate reaction to the purge itself. We do not see such a sharp drop within Shanghai as it is the ground zero of the purge and the respondents could feel monitored. The areas outside Shanghai therefore presented a more "authentic" reaction to the purge itself. However, once the messaging/propaganda takes over the narrative in roughly two-three weeks after the purge, we see a rise and indeed, a convergence on the *nodemo* variable for both Shanghai and the non-Shanghai rural areas. This interpretation follows the author's attempt of measuring *preference falsification*.
+
+
+```{r q1k_ggplot, echo=FALSE, message=FALSE, warning=FALSE, include=T}
+
+cgss06_restrict %>%
+  mutate(treat_condition = if_else(shanghai==1, 
+                                   "Shanghai (treatment)", 
+                                   "Elsewhere (control)")) %>% 
+  ggplot(aes(week, nodemo, color = treat_condition)) +
+  stat_summary(fun = "mean", geom = "line") +
+  labs(x = "Weeks", y = "Nodemo, Average") +
+  scale_color_discrete(name = "Treatment Conditions") + scale_x_continuous(breaks = seq(1, 11, by = 1)) + 
+  geom_vline(xintercept = 4.28)+
+  geom_vline(xintercept = 3.28, linetype="dashed")+ # 4.28 indicates 26/09 that was a Tuesday (1week/7days=0.1428)
+  geom_vline(xintercept = 5.28, linetype="dashed")+ # 3.28 indicates one week before and below the weeks after
+  geom_vline(xintercept = 6.28, linetype="dashed")+
+  geom_vline(xintercept = 7.28, linetype="dashed")+
+  theme_minimal()
+
+```
 
 ```{r q1j_reg_extended, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 
@@ -324,3 +355,28 @@ stargazer(DiD0, DiD1, DiD2, DiD3, DiD4, DiD5,
           )
 
 ```
+
+## Question 2
+
+### a and b)
+
+The paper explores the Elbe flooding as a natural experiment. This event affected only certain German districts (figure 1, p.855), which received an exogenous amount of financial aid relief, influencing these citizens vote decisions in the short and long-run.
+
+The paper assumes parallel trends in the absence of the treatment. To verify such assumption, they perform a falsification test by comparing the incumbent party (SPD PR) vote shares in the Elbe flooding affected (treated) and unaffected (control) areas before such event. They found no significance difference in the period 1994-1998 between these districts that could threaten the parallel trends assumption (SPD gained around 4.6 percentage points nationwide in this period, and this increase was the same in districts affected and unaffected by the flood in 2002). 
+
+The DiD approach assumes that the differences witnessed post-treatment were due the treatment and nothing else. Table 1 model 2 shows the positive impact of the flood relief on the affected district's SPD votes shares in 2002. By adding a set of covariates and by achieving the similar results, the authors showed that such differences were not lead by observable confounding factors. The authors also considered the districts reduction in the country on their estimations. By adding covariates to the DD analysis, the authors control for compositional changes and improve the precision of their DD estimates.
+
+Similarly, the authors test unmeasured confounding factors. Figure 2 shows divergent trajectories of SPD and opposition vote intentions in the affected and unaffected areas during and after the flood, ruling out differential trends in unobserved confounders. 
+
+The authors also tested alternative events that could explain the vote shares differences in the concerned regions. Figure 4 tested the possibility of a competing event (whether Germany should support or not the Iraq war) that could explain the voting pattern of the affected areas. It shows that such issue was not comparable to the Elbe flood and could not drive the results. 
+
+The authors mentioned/assume not knowing any other public policy(ies) prior to the flood that could impact the results. They didn't present any formal test regarding such claim, although this was probably not possible to perform. However, they account for possible endogeneity by including a lagged SPD voting share variable in their model.  
+
+Another potential issue could be inaccurate comparison groups, such that flooded areas should be compared not only with all the rest of the country but with nearby regions, contolling then for unobserved characteristics (e.g., cultural and local aspects). Figure 5 controls for such issue by showing "that the SPD vote gains are decreasing with distance to the flooded areas even within states in East Germany" (p.862). 
+
+### c)
+
+An issue not adressed by the authors refer to the spillover effects. "Our definition of directly affected districts leaves some districts in the control group that may be indirectly affected by positive regional spillovers that arise from the fact that voters who live closer to the directly affected areas may be more likely to reward the SPD electorally for the flood response" (p. 862). The authors acknowledge such limitation and invite future research to verify it. 
+
+In addition, the authors checked the impact of the Iraq issue only one the East part of the country, while such issue could also affect considerably the rest of the country (control group). Finally, the authors don't mention external events that could impact differently the treatment and control group after 2002. For example. the presence of Angela Merkel in the 2005 and 2009 election. ^[As someone who was seen as the first East German leader of a united Germany and the first woman chancellor, it would seem worthwhile to investigate if her presence on the ballot affects East and West Germany differently.] 
+

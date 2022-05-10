@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.pos = "!H", out.extra = "")
 
 ### i)
 
-Estimate the effect of job training grant (*grant*) on the hours of job training per employee (*hrsemp*). This simple relation can be summarized by the equation $hrsemp = \beta_0 +\beta_1grant+u$. The OLS results are reported below.
+Estimate the effect of job training grant (*grant*) on the hours of job training per employee (*hrsemp*). This simple relation can be summarized by the equation $hrsemp = \beta_0 +\beta_1grant+\beta2employ+u$. The OLS results are reported below.
 
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, include=F}
 library(haven)
@@ -52,9 +52,9 @@ force(jtrain)
 
 ```{r q1a_ols, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
 # restrict dataset to 1987
-jtrain_87<-subset(jtrain,year<1988)
+jtrain_87<-subset(jtrain,year<1988) %>% filter(hrsemp != "NA")
 # run a plain ols
-ols <- lm(hrsemp ~ grant, data = jtrain_87) # run regression
+ols <- lm(hrsemp ~ grant + employ, data = jtrain_87) # run regression
 stargazer(ols, header=FALSE, type='latex',title="Cross section")
 
 ```
@@ -63,15 +63,17 @@ The initial results present no effect of the *grant*. This happens because becau
 
 ### ii)
 
-In a panel context, the previous relation can be summarized by the following equation: $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+a_i+u_{it}$, t=1987, 1988, where $a_i$ is term for unobserved heterogeneity.
+In a panel context, the previous relation can be summarized by the following equation: $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+ \beta_2employ_{it}+a_i+u_{it}$, t=1987, 1988 (t=1,2), where $a_i$ is term for unobserved heterogeneity.
 
 ### iii)
 
 The  simple regression performed in *i)* likely suffers from omitted variable issues. This happens especially if the latter does not contain all possible control variables, which is very often the case. The use of panel data allow us to overcome such issue without the need of additional variables. This is possible because the unobserved non-time varying effects present in the error term and affecting the dependent variable can be accounted for in a panel setting. 
 
+Furthermore, running OLS in this case violates the GM assumption of independent observations. This is due the non-independence of firms (*i*) across the time periods.
+
 ### iv)
 
-The first difference equation is characterized by $\Delta hrsemp_i = \beta_0 +\beta_1 \Delta  grant_i+\Delta u_i$
+The first difference equation is characterized by $\Delta hrsemp_i = \beta_0 +\beta_1 \Delta  grant_i+ +\beta_2 \Delta  employ_i+ \Delta u_i$
 
 ```{r declare_panel_iv, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=FALSE}
 # restrict dataset to 1987 and 1988
@@ -80,7 +82,7 @@ jtrain_8788<-subset(jtrain,year<1989)
 jtrain.p <- pdata.frame(jtrain_8788, index = c("fcode", "year")) 
 pdim(jtrain.p)
 # run FD model
-fd <- plm(hrsemp ~ grant, data = jtrain.p,
+fd <- plm(hrsemp ~ grant + employ, data = jtrain.p,
               index = c("fcode", "year"), model = "fd")
 
 ```
@@ -91,30 +93,55 @@ stargazer(fd, header=FALSE, type='latex',title="First differences")
 
 ```
 
-Having a grant signficantly increases the hours of trainning per employee. An unit increase in the grant reflected around 28 more hours of trainning per employee. 
+The estimated equation $\Delta \widehat{hrsemp}=0.98+28.63\Delta grant-0.14\Delta employ$ indicates no effects of *employ*, but it does for *grant*. Having a grant signficantly increases the hours of job trainning per employee. An unit increase in the grant reflected around 28 more hours of trainning per employee *ceteris paribus*. 
 
 ### v) 
 
-The fixed effect equation could be summarized as folows: $\overline{hrsemp_{i,t}} = \beta_1 \overline{grant_{it}}+\overline{a_i}+\overline{u_{it}}$, t=1987, 1988. We should expect the same results between FE and FD estimations because in this case T=2, in other words only two years are being considered. While the FD estimation performs the difference between grant in the year of 1988 and in 1987, the FE estimation performs the difference between each observation and the mean. Because T=2 the FD and FE equations will be [equivalents](https://stats.stackexchange.com/questions/399892/how-to-prove-fd-and-fe-will-give-the-same-estimates-when-t-2)
+The time demeaned equation performs the difference between the units of observations and the mean of them across time, as follows: $hrsemp_{it}-\overline{hrsemp_{i}}=\beta_1(grant_{it}-\overline{grant_i})+\beta_2(employ_{it}-\overline{employ_i})+(u_{it}-\overline{u_{i}})$. The fixed effect equation could be summarized as folows: $\overline{hrsemp_{i,t}} = \beta_1 \overline{grant_{it}}+\overline{a_i}+\overline{u_{it}}$, t=1987, 1988. We should expect the same results between FE and FD estimations because in this case T=2, in other words only two years are being considered. While the FD estimation performs the difference between grant in the year of 1988 and in 1987, the FE estimation performs the difference between each observation and the mean. Because T=2 the FD and FE equations will be [equivalents](https://stats.stackexchange.com/questions/399892/how-to-prove-fd-and-fe-will-give-the-same-estimates-when-t-2)
 
 ```{r q1v_fe, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
 # run FE model
-fe_within <- plm(hrsemp ~ grant, data = jtrain.p,
+fe_within <- plm(hrsemp ~ grant + employ, data = jtrain.p,
               index = c("fcode", "year"), model = "within")
-stargazer(fe_within, header=FALSE, type='latex',title="Fixed effects")
+fe_within_d88 <- plm(hrsemp ~ grant + employ + d88, data = jtrain.p,
+                  index = c("fcode", "year"), model = "within")
+
+model.lst = list(fd, fe_within_d88,  fe_within)
+stargazer(fd, fe_within_d88,  fe_within,
+          type = "latex",
+          title="First-differences and Fixed-effects with and without dummy regarding 1988",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("First-differences", "Fixed-effects with 1988", "Fixed-effects"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
 ```
 
-However, the estimates are slightly different. This could be a signal for the violation of the strict exogeneity. 
+However, the estimates are slightly different without including the dummy regarding the year of 1988. This could be a signal for the violation of the strict exogeneity. 
 
 ### vi)
 
 The table below presents the FE and FD estimates. Although both estimates are significant, FE preseted a higher magnitude.  
 
 ```{r q1vi_full, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
+
+jtrainf<-pdata.frame(jtrain, index=c("fcode","year"))
 # run a plain full panel
-fd_full <- plm(hrsemp ~ grant, data = jtrain,
+fd_full <- plm(hrsemp ~ grant+employ, data = jtrainf,
               index = c("fcode", "year"), model = "fd")
-fe_within_full <- plm(hrsemp ~ grant, data = jtrain,
+fe_within_full <- plm(hrsemp ~ grant+employ, data = jtrainf,
               index = c("fcode", "year"), model = "within")
 
 model.lst = list(fd_full, fe_within_full)
@@ -144,24 +171,22 @@ stargazer(fd_full, fe_within_full,
 
 ### vii)
 
-Strict exogeneity implies that $u_{it}$ should not correlate with the independent variables of all time periods. A serial correlation test allows to identify if such assumption holds. The results below reject the null of serial correlation for the FD model but not for the FE model. This corroborates the results found in *v)*.  
+Strict exogeneity implies that $u_{it}$ should not correlate with the independent variables of all time periods. A serial correlation test allows to identify if such assumption holds. The test below has the alternative hypothesis of serial correlation and the null of non serial correlation (strict exogeneity). The results for the FD model present a p-value<0.05 and we reject the null of non serial correlation, indicating the inverse. While for the FE model the conclusion is the opposite. This results corroborates the different results from FD and FE with T=2 found in *v)*.  
 
 ```{r q1vii_tests, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
 pwfdtest(fd_full)
 pwartest(fe_within_full)
 ```
 
-\newpage
-
 ### viii)
 
-The model to estimate either using FE or FD then becomes $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+ \beta_1union_{it}+ a_i+u_{it}$, t=1987, 1988, 1989.
+The model to estimate either using FE or FD then becomes $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+ \beta_2employ_{it}+ \beta_3union_{it}+ a_i+u_{it}$, t=1987, 1988, 1989.
 
 ```{r q1viii_full, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
 # run a plain full panel
-fd_full_union <- plm(hrsemp ~ grant + union, data = jtrain,
+fd_full_union <- plm(hrsemp ~ grant + employ + union, data = jtrainf,
               index = c("fcode", "year"), model = "fd")
-fe_within_full_union <- plm(hrsemp ~ grant + union, data = jtrain,
+fe_within_full_union <- plm(hrsemp ~ grant + employ + union, data = jtrainf,
               index = c("fcode", "year"), model = "within")
 
 model.lst = list(fd_full_union, fe_within_full_union)

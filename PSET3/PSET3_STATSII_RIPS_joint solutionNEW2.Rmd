@@ -1,0 +1,461 @@
+---
+title: "PSET 3 STATS II RIPS"
+author: "Vaibhavi Sharma Pathak, Marcelo Piemonte Ribeiro, Fredrik Wallin"
+date: "05/12/2022"
+output: pdf_document
+extra_dependencies: ["float"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.pos = "!H", out.extra = "")
+
+```
+
+## Question 1
+
+### i)
+
+Estimate the effect of job training grant (*grant*) on the hours of job training per employee (*hrsemp*). This simple relation can be summarized by the equation $hrsemp = \beta_0 +\beta_1grant+\beta2employ+u$. The OLS results are reported below.
+
+```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, include=F}
+library(haven)
+library(margins)
+library(mfx)
+library(skedastic)
+library(jtools)
+library(stargazer)
+library(AER)
+library(pander)
+library(tidyverse)
+library(sandwich)
+library(car)
+library(estimatr)
+library(plm)
+library(lmtest)
+library(texreg)
+library(AICcmodavg)
+# install.packages('fastDummies')
+# tinytex::install_tinytex()
+library('fastDummies')
+library("rmarkdown")
+library("tinytex")
+library(knitr)
+
+```
+
+
+```{r jtrain, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=FALSE}
+# import dataset
+data(jtrain, package = "wooldridge")
+force(jtrain)
+```
+
+```{r q1a_ols, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
+# restrict dataset to 1987
+jtrain_87<-subset(jtrain,year<1988) %>% filter(hrsemp != "NA")
+# run a plain ols
+ols <- lm(hrsemp ~ grant + employ, data = jtrain_87) # run regression
+stargazer(ols, header=FALSE, type='latex',title="Cross section")
+
+```
+
+The initial results present no effect of the *grant*. This happens because because no firms received grants in 1987 - Wooldridge, J. M. (2019). Introductory econometrics: A modern approach. Cengage learning, Ch. 13, p.445.
+
+### ii)
+
+In a panel context, the previous relation can be summarized by the following equation: $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+ \beta_2employ_{it}+a_i+u_{it}$, t=1987, 1988 (t=1,2), where $a_i$ is term for unobserved heterogeneity.
+
+### iii)
+
+The  simple regression performed in *i)* likely suffers from omitted variable issues. This happens especially if the latter does not contain all possible control variables, which is very often the case. The use of panel data allow us to overcome such issue without the need of additional variables. This is possible because the unobserved non-time varying effects present in the error term and affecting the dependent variable can be accounted for in a panel setting. Furthermore, running OLS in this case violates the GM assumption of independent observations. This is due the non-independence of firms (*i*) across the time periods.
+
+### iv)
+
+The first difference equation is characterized by $\Delta hrsemp_i = \beta_0 +\beta_1 \Delta  grant_i+ +\beta_2 \Delta  employ_i+ \Delta u_i$
+
+```{r declare_panel_iv, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=FALSE}
+# restrict dataset to 1987 and 1988
+jtrain_8788<-subset(jtrain,year<1989)
+# declare panel
+jtrain.p <- pdata.frame(jtrain_8788, index = c("fcode", "year")) 
+pdim(jtrain.p)
+# run FD model
+fd <- plm(hrsemp ~ grant + employ, data = jtrain.p,
+              index = c("fcode", "year"), model = "fd")
+
+```
+
+```{r q1iv_fd, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
+# regs outputs OLS and FD models
+stargazer(fd, header=FALSE, type='latex',title="First differences")
+
+```
+
+The estimated equation $\Delta \widehat{hrsemp}=0.98+28.63\Delta grant-0.14\Delta employ$ indicates no effects of *employ*, but it does for *grant*. Having a grant signficantly increases the hours of job trainning per employee. An unit increase in the grant reflected around 28 more hours of trainning per employee *ceteris paribus*. 
+
+### v) 
+
+The time demeaned equation performs the difference between the units of observations and the mean of them across time, as follows: $hrsemp_{it}-\overline{hrsemp_{i}}=\beta_1(grant_{it}-\overline{grant_i})+\beta_2(employ_{it}-\overline{employ_i})+(u_{it}-\overline{u_{i}})$. The fixed effect equation could be summarized as folows: $\ddot{hrsemp_{i,t}} = \beta_1 \ddot{grant_{it}}+ \beta_2 \ddot{employ_{it}} +\ddot{u_{it}}$, t=1987, 1988. We should expect the same results between FE and FD estimations because in this case T=2, in other words only two years are being considered. While the FD estimation performs the difference between grant in the year of 1988 and in 1987, the FE estimation performs the difference between each observation and the mean. Because T=2 the FD and FE estimates should be [equivalents](https://stats.stackexchange.com/questions/399892/how-to-prove-fd-and-fe-will-give-the-same-estimates-when-t-2)
+
+```{r q1v_fe, echo=FALSE, message=FALSE, warning=FALSE,results='asis', fig.align="center", float = FALSE}
+# run FE model
+fe_within <- plm(hrsemp ~ grant + employ, data = jtrain.p,
+              index = c("fcode", "year"), model = "within")
+fe_within_d88 <- plm(hrsemp ~ grant + employ + d88, data = jtrain.p,
+                  index = c("fcode", "year"), model = "within")
+
+model.lst = list(fd, fe_within_d88,  fe_within)
+stargazer(fd, fe_within_d88,  fe_within,
+          type = "latex",
+          title="First-differences and Fixed-effects with and without dummy regarding 1988",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("First-differences", "Fixed-effects with 1988", "Fixed-effects"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+```
+
+However, the estimates are slightly different without including the dummy regarding the year of 1988. This could be a signal for the violation of the strict exogeneity. Time dummies account for time related effects which are common to all individuals/firms and that are not capture already in the model.
+
+### vi)
+
+The table below presents the FE and FD estimates. Although both estimates are significant, FE presented a higher magnitude. Also, dummy for the year 1989 showed to be significant. 
+
+```{r q1vi_full, echo=FALSE, message=FALSE, warning=FALSE,results='asis',fig.align="center", float = FALSE}
+
+jtrainf<-pdata.frame(jtrain, index=c("fcode","year"))
+# run a plain full panel
+fd_full <- plm(hrsemp ~ grant+employ, data = jtrainf,
+              index = c("fcode", "year"), model = "fd")
+fe_within_full <- plm(hrsemp ~ grant+employ, data = jtrainf,
+              index = c("fcode", "year"), model = "within")
+fd_full_d8889 <- plm(hrsemp ~ grant+employ+ d88+ d89, data = jtrainf,
+              index = c("fcode", "year"), model = "fd")
+fe_within_full_d8889 <- plm(hrsemp ~ grant+employ+ d88+ d89, data = jtrainf,
+              index = c("fcode", "year"), model = "within")
+
+model.lst = list(fd_full, fe_within_full, fd_full_d8889, fe_within_full_d8889)
+stargazer(fd_full, fe_within_full, fd_full_d8889, fe_within_full_d8889,
+          type = "latex",
+          title="First-differences and Fixed-effects full sample with and without time fixed-effects",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("FD", "FE","FD dummies", "FE dummies"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+
+```
+
+
+### vii)
+
+Strict exogeneity implies that $u_{it}$ should not correlate with the independent variables of all time periods. A serial correlation test allows to identify if such assumption holds. The test below has the alternative hypothesis of serial correlation and the null of non serial correlation (strict exogeneity). The results for the FD model present a p-value<0.05 and we reject the null of non serial correlation, indicating the inverse. While for the FE model the conclusion is the opposite. This results corroborates the different results from FD and FE with T=2 found in *v)*.  
+
+```{r q1vii_tests, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE}
+pwfdtest(fd_full)
+pwartest(fe_within_full)
+```
+
+### viii)
+
+The model to estimate either using FE or FD then becomes $hrsemp_{it} = \beta_0 +\beta_1grant_{it}+ \beta_2employ_{it}+ \beta_3union_{it}+ a_i+u_{it}$, t=1987, 1988, 1989.
+
+```{r q1viii_full, echo=FALSE, message=FALSE, warning=FALSE,results='asis',fig.align="center", float = FALSE}
+# run a plain full panel
+fd_full_union <- plm(hrsemp ~ grant + employ + union, data = jtrainf,
+              index = c("fcode", "year"), model = "fd")
+fe_within_full_union <- plm(hrsemp ~ grant + employ + union, data = jtrainf,
+              index = c("fcode", "year"), model = "within")
+fd_full_union_d8889 <- plm(hrsemp ~ grant + employ + union + d88+ d89, data = jtrainf,
+              index = c("fcode", "year"), model = "fd")
+fe_within_full_union_d8889 <- plm(hrsemp ~ grant + employ + union+ d88+ d89, data = jtrainf,
+              index = c("fcode", "year"), model = "within")
+
+
+model.lst = list(fd_full_union, fe_within_full_union, fd_full_union_d8889, fe_within_full_union_d8889)
+stargazer(fd_full_union, fe_within_full_union,fd_full_union_d8889, fe_within_full_union_d8889,
+          type = "latex",
+          title="First-differences and Fixed-effects full sample and union and with and without time fixed-effects",
+          float = TRUE,
+          report = "vcs*",
+          se=lapply(model.lst, function(x) sqrt(diag(vcovHC(x, type = "HC1")))),
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("FD", "FE","FD dummies","FE dummies"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes = c("datasets::freeny", "lm() function", "vcovHC(type = 'HC1')-Robust SE"),
+          notes.append = TRUE
+          )
+
+```
+
+```{r q1viii_check_union, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=F}
+library(reshape2)
+result = dcast(jtrain, fcode ~ year, value.var="union", fun.aggregate=sum)
+result
+```
+The results are the same as the previous estimation because they rely on within variation, but *union* does not vary across individuals/firms. In other words, there is no within variation in *union*, individuals associated to an union were linked to the latter in all three years.
+
+## Question 2
+
+### i)
+
+The IV used in the paper "is an indicator variable for whether or not the country is a former colony of the EU Council presidency in the second 6 months of the year t-2, when the budget is determined", Carneige and Marinov (2017), p.677. The authors employed such strategy because the original relation they aimed to estimate contained an endogenous variable, logged net EU official development assistance (ODA). This happened because the previous variable is not randomly assigned as "aid disbursements are made in ways that are systematically related to the recipient countries' human rights" p.677, where recipient countries' human rights is the dependent variable. This strategy was necessary to respond such estimation, otherwise the inital results could mask reverse causality.   
+
+### ii)
+
+First, they assume that $Colony_{i(t-2)2}$ only affects $DV_{it}$ through the explanatory variable ($log(ODA){i(t-1)}$), which is the exclusion restriction (p. 677) that they test in their supplemental code. They therefore need two statistical assumptions to be met: Random assignment of colony status; and a significant effect of the $Colony{i(t-2)2}$ on $log(ODA)_{i(t-1)}$.
+
+They show that the first assumption is met through a quasi-random assignment of the presidency of the EU Council. As it rotates due to a mechanism decided upon long before, the randomness seems given and valid, which is further corroborated through the use of an array of control variables in the 2SLS, which do not lead to a big shift of the instrumental effect. Thereby, they manage to show exogeneity quite convincingly. However, the use of a J-test could have further underlined this.
+
+The second assumption holds in the paper due to a significant effect of the instrument in the first stage regression (which we later also observe) as well as an F-value 10< (10.85). To be more specific, the effect of the instrumental on the explanatory variable is such that an increase of the independent variable (aid) by 18% for every unit increase of the IV (p. 678). Moreover, they use the supporting information to underline that the colony status is only statistically significantly linked to the aid allocation if the EU Council presidency is in the second term, where budgets are discussed. Consequently, they show quite neatly that the instrument is significant (after having shown that it is also needed theoretically to avoid reverse causality).
+
+Additionally, and somewhat underlying to every statistical study is the risk of measuring the wrong or inconsistent values through their identification strategy. This includes, e.g., (i) the changing composition of the Council, (ii) recipient countries that are not former colonies of any of the eligible Council members, and (iii) amendments to the rotation rules (p. 677). However, they address these by restricting the samples or statistically correcting the analysis via the inclusion of year fixed effects, which is plausible.
+Finally, they also mention that the linearity and constant effect assumptions are not necessary for the estimation of the causal effect.
+
+In terms of theoretical assumptions, the paper claims that the Council presidency matters for the budget allocation (in favour of the presidency's former colonies), the Commission then ties aid to advancements in human rights and democracy issues, and that the recipient of the aid also implements changes accordingly. They proceed to show these results with the IV as well as Figure 1, where they show the effect of aid over the years (t + 5).
+
+### iii)
+
+Equation for the first stage:
+
+$$ log(ODA)_{i(t-i)} = \theta_0 + \theta_1 Colony_{i(t-2)2} + \sum_{k \in K} \theta_kI(i = k) + \sum_{j \in J} \theta_jI(t = j) + e_{it} $$
+Equation for the second stage:
+
+$$ DV_{it'} = \beta_0 + \beta_1 log(ODA)_{i(t-i)} + \sum_{k \in K} \theta_kI(i = k) + \sum_{j \in J} \theta_jI(t = j) + u_{it} $$
+Note that in the data set: $$ log(ODA)_{i(t-i)} = EV  $$
+$$ Colony_{i(t-2)2} = l2CPcol2$$ and $$ DV\_{it'} = {new\_{}empinxavg}$$
+
+
+### iv)
+
+When running the first stage regression, we find an estimated relationship of $Colony_{i(t-2)2}$ on $\widehat{log(ODA)_{i(t-i)}}$ is 0.160 (SE = 0.073, p < 0.05), with an F-statistic of 40.03 (far above 10). Consequently, one cannot reject the assumption that the instrument is strong.  The results are summarized in Table 6. 
+
+```{r final_main_dta, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=FALSE}
+library(haven)
+df <- read_dta('Final_Main.dta')
+#convert to data frame in long format as panel data.
+df.p <- pdata.frame(df, index = c("ccode", "year")) 
+# pdim(df)
+
+df.p_narm <- subset(df.p, !is.na(new_empinxavg))
+typeof(df.p_narm$year)
+df.p_narm$year <- as.integer(levels(df.p_narm$year))[df.p_narm$year]
+df.p_narm <- subset(df.p_narm, year >= 1987)
+
+# max(df.p_narm$year)
+# min(df.p_narm$year)
+# pdim(df.p_narm)
+# df.p_narm
+
+
+```
+
+```{r q2iv, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=T}
+# First stage with controls
+tsls_first <- lm(EV ~ l2CPcol2 + factor(year) + factor(ccode), data = df.p_narm)
+# summary(tsls_first)
+
+# Second stage without controls
+tsls_second_no_co <- lm(new_empinxavg ~ fitted(tsls_first) + factor(year) + factor(ccode), 
+                  data = df.p_narm)
+# summary(tsls_second_no_co)
+
+# Second stage with controls
+tsls1_second <- lm(new_empinxavg ~ fitted(tsls_first) + factor(year) + factor(ccode) + covihme_ayem + covwdi_exp + covwdi_fdi
+                    + covwdi_imp + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp
+                    + covloggdpC + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF
+                    + covwvs_relF + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF
+                    + covloggdpCF, 
+                    data = df.p_narm)
+# summary(tsls1_second)
+
+
+# Reporting the results in a table
+stargazer(tsls_first, tsls_second_no_co, tsls1_second,
+          type = "latex",
+          keep = c("l2CPcol2", "tsls_first"),
+          title="2SLS manual estimates",
+          float = TRUE,
+          report = "vcs*",
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("1st Stage", "2nd Stage (no controls)", "2nd (controls)"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes.append = TRUE
+          )
+
+```
+
+In the second stage regression, we manage to replicate the first result displayed by Carnegie and Marinov in table 1 (p. 679), whereby the coefficient for the regression without controls is 1.885 (SE = .80, p < 0.05) and with controls is 1.641 (SE = 0.78, p < 0.05). Moreover, we cannot report the standard errors from this analysis, as they are not robust.
+
+### v)
+
+Using the `ivreg`-command, we were able to replicate the results in the paper. Both for the IV regression without control variables (see column 1 below), as with control variables (columns 2 & 3) and then also through our manual estimation (column 4). These results are summarized in Table 7. 
+
+```{r q2v, echo=FALSE, message=FALSE, warning=FALSE,results='asis',float = FALSE, include=T}
+# Run regression without controls
+iv_no_co <- ivreg(new_empinxavg ~ EV + factor(year) + factor(ccode) | l2CPcol2 +
+                 factor(year) + factor(ccode),
+                  data = df.p_narm)
+# summary(iv_no_co)
+
+# Run regression with controls
+
+iv_co <- ivreg(new_empinxavg ~ EV + factor(year) + factor(ccode) + covihme_ayem + covwdi_exp + covwdi_fdi
+                    + covwdi_imp + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp
+                    + covloggdpC + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF
+                    + covwvs_relF + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF
+                    + covloggdpCF | l2CPcol2 +
+                 factor(year) + factor(ccode)+ covihme_ayem + covwdi_exp + covwdi_fdi
+                    + covwdi_imp + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp
+                    + covloggdpC + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF
+                    + covwvs_relF + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF
+                    + covloggdpCF,
+                  data = df.p_narm)
+# summary(iv_co)
+
+tsls1_iv <- plm(new_empinxavg ~ EV + covihme_ayem + covwdi_exp + covwdi_fdi + covwdi_imp 
+                   + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp + covloggdpC
+                   + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF + covwvs_relF
+                   + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF + covloggdpCF
+                   + X_Iyear_1987 + X_Iyear_1988 + X_Iyear_1989 + X_Iyear_1990 + X_Iyear_1991 
+                   + X_Iyear_1992 + X_Iyear_1993 + X_Iyear_1994 + X_Iyear_1995 + X_Iyear_1996
+                   + X_Iyear_1997 + X_Iyear_1998 + X_Iyear_1999 + X_Iyear_2000 + X_Iyear_2001
+                   + X_Iyear_2002 + X_Iyear_2003 + X_Iyear_2004 + X_Iyear_2005 + X_Iyear_2006 |
+                    l2CPcol2 + covihme_ayem + covwdi_exp + covwdi_fdi + covwdi_imp 
+                   + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp + covloggdpC
+                   + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF + covwvs_relF
+                   + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF + covloggdpCF
+                   + X_Iyear_1987 + X_Iyear_1988 + X_Iyear_1989 + X_Iyear_1990 + X_Iyear_1991 
+                   + X_Iyear_1992 + X_Iyear_1993 + X_Iyear_1994 + X_Iyear_1995 + X_Iyear_1996
+                   + X_Iyear_1997 + X_Iyear_1998 + X_Iyear_1999 + X_Iyear_2000 + X_Iyear_2001
+                   + X_Iyear_2002 + X_Iyear_2003 + X_Iyear_2004 + X_Iyear_2005 + X_Iyear_2006, 
+               data = df.p_narm, index = c("ccode", "year"), model = "within")
+# summary(tsls1_iv)
+
+stargazer(iv_no_co, iv_co, tsls1_iv, tsls1_second,
+          type = "latex",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          keep = c("EV", "tsls_first"),
+          column.labels = c("No controls", "With controls", "with controls", "with controls")
+          )
+```
+
+### vi)
+
+Here, it shows that there is a difference between the iv regression and OLS, with or without inclusion of controls (columns 2 & 3 in table below are OLS). While the OLS regressions yielded statistically significant results (coefficients 0.190 with controls or 0.216 without), the instrumental variable did not. This indicates an added value of the IV approach. The results are summarized in Table 8.
+
+```{r q2vi, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=T}
+# Run regression
+OLS_co <- lm(new_empinxavg ~ EV + factor(year) + factor(ccode) + covihme_ayem + covwdi_exp + covwdi_fdi + covwdi_imp 
+                   + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp + covloggdpC
+                   + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF + covwvs_relF
+                   + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF + covloggdpCF, data = df.p_narm)
+# summary(OLS_co)
+
+OLS_no_co <- lm(new_empinxavg ~ EV + factor(year) + factor(ccode), data = df.p_narm)
+
+# summary(OLS_no_co)
+
+# View / compare the three models in stargazer
+
+stargazer(iv_co, OLS_co, OLS_no_co,
+          type = "latex",
+          title="IV and OLS",
+          column.labels = c("with controls", "with controls", "without controls"),
+          keep = c("EV"),
+          float = TRUE,
+          report = "vcs*",
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes.append = TRUE
+          )
+```
+
+
+### vii)
+
+When running an endogeneity tests with the residuals of the first stage regression (`tsls_first` in the table below), we find that we can reject the null hypothesis (${H_0}$) at $p$ < 0.1 (with controls) or $p$ < 0.05 (without controls) that there is no statistically significant difference of the residuals from 0. Based on this, it appears the explanatory variable is indeed not exogenous. The results are summarized in Table 9.
+
+```{r q2vii, echo=FALSE, message=FALSE, warning=FALSE,results='asis', float = FALSE, include=T}
+
+
+tsls1_second_rev_no_co <- lm(new_empinxavg ~ EV + factor(year) + factor(ccode) + resid(tsls_first),
+                      data = df.p_narm)
+
+
+tsls_second_rev_co <- lm(new_empinxavg ~ EV + factor(year) + factor(ccode) + covihme_ayem + covwdi_exp + covwdi_fdi
+                      + covwdi_imp + covwvs_rel + coviNY_GDP_PETR_RT_ZS + covdemregion + covloggdp + covloggdpC
+                      + covihme_ayemF + covwdi_expF + covwdi_fdiF + covwdi_impF + covwvs_relF 
+                      + coviNY_GDP_PETR_RT_ZSF + covdemregionF + covloggdpF + covloggdpCF + resid(tsls_first),
+                      data = df.p_narm)
+
+# summary(tsls1_second_rev)
+
+stargazer(tsls1_second_rev_no_co, tsls_second_rev_co,
+          type = "latex",
+          keep = c("EV", "tsls_first"),
+          title="Endogeneity test with residuals from the 1st-stage",
+          float = TRUE,
+          report = "vcs*",
+          no.space = TRUE,
+          header=FALSE,
+          single.row = TRUE,
+          font.size = "small",
+          intercept.bottom = F,
+          column.labels = c("without controls", "with controls"),
+          column.separate = c(1,1, 1),
+          digits = 4,
+          t.auto = F,
+          p.auto = F,
+          notes.align = "l",
+          notes.append = TRUE
+          )
+```
